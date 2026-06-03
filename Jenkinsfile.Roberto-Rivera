@@ -91,13 +91,11 @@ pipeline {
         stage('deploy'){
             steps {
                 container('kubectl'){
-                    withKubeConfig([credentialsId: 'kubernetes-config']){
-                        sh '''
-                            kubectl apply -f entrega.yaml -n ${K8S_NAMESPACE}
-                            kubectl -n ${K8S_NAMESPACE} set image deployment/app-roberto-rivera app-roberto-rivera=${DH_REPO}:${APP_VERSION}
-                            kubectl -n ${K8S_NAMESPACE} rollout status deployment/app-roberto-rivera
-                        '''
-                    }
+                    sh '''
+                        kubectl apply -f entrega.yaml
+                        kubectl -n ${K8S_NAMESPACE} set image deployment/app-roberto-rivera app-roberto-rivera=${DH_REPO}:${APP_VERSION}
+                        kubectl -n ${K8S_NAMESPACE} rollout status deployment/app-roberto-rivera
+                    '''
                 }
             }
         }
