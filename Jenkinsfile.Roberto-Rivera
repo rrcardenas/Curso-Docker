@@ -16,67 +16,75 @@ pipeline {
         stage('install'){
             steps {
                 container('pnpm'){
-                    sh '''
-                        pnpm runtime set node 24 -g
-                        node --version
-                        pnpm --version
-                        pnpm install --frozen-lockfile
-                    '''
+                    dir('proyecto'){
+                        sh '''
+                            pnpm runtime set node 24 -g
+                            node --version
+                            pnpm --version
+                            pnpm install --frozen-lockfile
+                        '''
+                    }
                 }
             }
         }
         stage('test'){
             steps {
                 container('pnpm'){
-                    sh '''
-                        pnpm test
-                    '''
+                    dir('proyecto'){
+                        sh '''
+                            pnpm test
+                        '''
+                    }
                 }
             }
         }
         stage('build'){
             steps {
                 container('pnpm'){
-                    sh '''
-                        pnpm build
-                    '''
+                    dir('proyecto'){
+                        sh '''
+                            pnpm build
+                        '''
+                    }
                 }
             }
         }
         stage('push'){
             steps {
                 container('buildkit'){
-                    sh '''
-                        export DOCKER_CONFIG=/docker-configs/dockerhub
-                        test -s "${DOCKER_CONFIG}/config.json"
+                    dir('proyecto'){
+                        sh '''
+                            export DOCKER_CONFIG=/docker-configs/dockerhub
+                            test -s "${DOCKER_CONFIG}/config.json"
 
-                        buildctl-daemonless.sh build \
-                        --frontend dockerfile.v0 \
-                        --local context=. \
-                        --local dockerfile=. \
-                        --output type=image,name=${DH_REPO}:roberto,push=true
+                            buildctl-daemonless.sh build \
+                            --frontend dockerfile.v0 \
+                            --local context=. \
+                            --local dockerfile=. \
+                            --output type=image,name=${DH_REPO}:roberto,push=true
 
-                        buildctl-daemonless.sh build \
-                        --frontend dockerfile.v0 \
-                        --local context=. \
-                        --local dockerfile=. \
-                        --output type=image,name=${DH_REPO}:${APP_VERSION},push=true
+                            buildctl-daemonless.sh build \
+                            --frontend dockerfile.v0 \
+                            --local context=. \
+                            --local dockerfile=. \
+                            --output type=image,name=${DH_REPO}:${APP_VERSION},push=true
 
-                        export DOCKER_CONFIG=/docker-configs/github
-                        test -s "${DOCKER_CONFIG}/config.json"
+                            export DOCKER_CONFIG=/docker-configs/github
+                            test -s "${DOCKER_CONFIG}/config.json"
 
-                        buildctl-daemonless.sh build \
-                        --frontend dockerfile.v0 \
-                        --local context=. \
-                        --local dockerfile=. \
-                        --output type=image,name=${GH_REPO}:roberto,push=true
+                            buildctl-daemonless.sh build \
+                            --frontend dockerfile.v0 \
+                            --local context=. \
+                            --local dockerfile=. \
+                            --output type=image,name=${GH_REPO}:roberto,push=true
 
-                        buildctl-daemonless.sh build \
-                        --frontend dockerfile.v0 \
-                        --local context=. \
-                        --local dockerfile=. \
-                        --output type=image,name=${GH_REPO}:${APP_VERSION},push=true
-                    '''
+                            buildctl-daemonless.sh build \
+                            --frontend dockerfile.v0 \
+                            --local context=. \
+                            --local dockerfile=. \
+                            --output type=image,name=${GH_REPO}:${APP_VERSION},push=true
+                        '''
+                    }
                 }
             }
         }
