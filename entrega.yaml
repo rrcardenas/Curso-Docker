@@ -1,0 +1,95 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ns-roberto-rivera
+  labels:
+    app: app-roberto-rivera
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-roberto-rivera
+  namespace: ns-roberto-rivera
+data:
+  AMBIENTE: produccion
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secret-roberto-rivera
+  namespace: ns-roberto-rivera
+type: Opaque
+stringData:
+  API_KEY: lab3-api-key-secreta
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-roberto-rivera
+  namespace: ns-roberto-rivera
+  labels:
+    app: app-roberto-rivera
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: app-roberto-rivera
+  template:
+    metadata:
+      labels:
+        app: app-roberto-rivera
+    spec:
+      imagePullSecrets:
+        - name: regcred-dh
+      containers:
+        - name: app-roberto-rivera
+          image: rarcardenas/tarea-final:roberto
+          imagePullPolicy: Always
+          env:
+            - name: AMBIENTE
+              valueFrom:
+                configMapKeyRef:
+                  name: config-roberto-rivera
+                  key: AMBIENTE
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: secret-roberto-rivera
+                  key: API_KEY
+          ports:
+            - containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /lab
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /lab
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-roberto-rivera
+  namespace: ns-roberto-rivera
+  labels:
+    app: app-roberto-rivera
+spec:
+  type: ClusterIP
+  selector:
+    app: app-roberto-rivera
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000

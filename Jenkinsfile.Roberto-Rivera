@@ -1,0 +1,97 @@
+pipeline {
+    agent {
+        kubernetes {
+            defaultContainer 'pnpm'
+            yamlFile 'agent.yaml'
+        }
+    }
+    environment{
+        IMAGE_NAME = 'tarea-final'
+        DH_REPO = 'rarcardenas/tarea-final'
+        GH_REPO = 'ghcr.io/rrcardenas/tarea-final'
+        K8S_NAMESPACE = 'ns-roberto-rivera'
+        APP_VERSION = '3.0.0'
+    }
+    stages {
+        stage('install'){
+            steps {
+                container('pnpm'){
+                    sh '''
+                        pnpm runtime set node 24 -g
+                        node --version
+                        pnpm --version
+                        pnpm install --frozen-lockfile
+                    '''
+                }
+            }
+        }
+        stage('test'){
+            steps {
+                container('pnpm'){
+                    sh '''
+                        pnpm test
+                    '''
+                }
+            }
+        }
+        stage('build'){
+            steps {
+                container('pnpm'){
+                    sh '''
+                        pnpm build
+                    '''
+                }
+            }
+        }
+        stage('push'){
+            steps {
+                container('buildkit'){
+                    sh '''
+                        export DOCKER_CONFIG=/docker-configs/dockerhub
+                        test -s "${DOCKER_CONFIG}/config.json"
+
+                        buildctl-daemonless.sh build \
+                        --frontend dockerfile.v0 \
+                        --local context=. \
+                        --local dockerfile=. \
+                        --output type=image,name=${DH_REPO}:roberto,push=true
+
+                        buildctl-daemonless.sh build \
+                        --frontend dockerfile.v0 \
+                        --local context=. \
+                        --local dockerfile=. \
+                        --output type=image,name=${DH_REPO}:${APP_VERSION},push=true
+
+                        export DOCKER_CONFIG=/docker-configs/github
+                        test -s "${DOCKER_CONFIG}/config.json"
+
+                        buildctl-daemonless.sh build \
+                        --frontend dockerfile.v0 \
+                        --local context=. \
+                        --local dockerfile=. \
+                        --output type=image,name=${GH_REPO}:roberto,push=true
+
+                        buildctl-daemonless.sh build \
+                        --frontend dockerfile.v0 \
+                        --local context=. \
+                        --local dockerfile=. \
+                        --output type=image,name=${GH_REPO}:${APP_VERSION},push=true
+                    '''
+                }
+            }
+        }
+        stage('deploy'){
+            steps {
+                container('kubectl'){
+                    withKubeConfig([credentialsId: 'kubernetes-config']){
+                        sh '''
+                            kubectl apply -f entrega.yaml -n ${K8S_NAMESPACE}
+                            kubectl -n ${K8S_NAMESPACE} set image deployment/app-roberto-rivera app-roberto-rivera=${DH_REPO}:${APP_VERSION}
+                            kubectl -n ${K8S_NAMESPACE} rollout status deployment/app-roberto-rivera
+                        '''
+                    }
+                }
+            }
+        }
+    }
+}

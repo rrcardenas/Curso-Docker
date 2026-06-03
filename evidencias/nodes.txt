@@ -1,0 +1,2 @@
+NAME                    STATUS   ROLES           AGE   VERSION
+desktop-control-plane   Ready    control-plane   16m   v1.34.3
